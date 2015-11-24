@@ -11,16 +11,9 @@ var table = null;
 var oFilterTimerId = null;
 
 /**
- * Default filter delay to optimize performance
- * @type {number}
- */
-var delay = 600;
-
-/**
  * Add search behavior to all search fields in column footer
- *
-*/
-function initSearch ()
+ */
+function initColumnSearch()
 {
     table.api().columns().every( function () {
         var index = this.index();
@@ -28,7 +21,7 @@ function initSearch ()
             // -- set search
             table.api().column(index).search( this.value );
             window.clearTimeout(oFilterTimerId);
-            oFilterTimerId = window.setTimeout(drawTable , delay);
+            oFilterTimerId = window.setTimeout(drawTable , params.delay);
         });
     });
 };
