@@ -18,7 +18,10 @@ class DataTablesComponent extends Component
         'start' => 0,
         'length' => 10,
         'order' => [],
-        'prefixSearch' => true, // use "LIKE …%" instead of "LIKE %…%" conditions
+        'search' => [
+            'prefix' => true, // use "LIKE …%", not "LIKE %…%" for string comparisons
+            'lower' => true, // use LOWER(…) for case-insensitive string comparisons
+        ],
         'conditionsOr' => [],  // table-wide search conditions
         'conditionsAnd' => [], // column search conditions
         'matching' => [],      // column search conditions for foreign tables
@@ -230,12 +233,20 @@ class DataTablesComponent extends Component
         }
 
         /* build condition */
-        $comparison = trim($this->_getComparison($table, $column));
-        // wrap value for LIKE and NOT LIKE
-        if (strpos(strtolower($comparison), 'like') !== false) {
-            $value = $this->config('prefixSearch') ? "{$value}%" : "%{$value}%";
+        $left = $column;
+        $operator = trim($this->_getComparison($table, $column));
+        $right = $value;
+
+        // match LIKE or NOT LIKE
+        $stringComp = strpos(strtolower($operator), 'like') !== false;
+        if ($stringComp) {
+            $right = ($this->config('search.prefix') ? "{$right}%" : "%{$right}%");
+            if ($this->config('search.lower')) {
+                $left = "LOWER({$left})";
+                $right = $table->query()->func()->lower($right);
+            }
         }
-        $condition = ["{$column} {$comparison}" => $value];
+        $condition = ["{$left} {$operator}" => $right];
 
         /* add as global condition */
         if ($type === 'or') {
