@@ -2,6 +2,7 @@
 namespace DataTables\Controller\Component;
 
 use Cake\Controller\Component;
+use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -158,6 +159,8 @@ class DataTablesComponent extends Component
                     $data->where(['or' => $this->config('conditionsOr')]);
                 }
             }
+        } else {
+            $data->where($this->config('conditionsAnd'));
         }
 
         // -- retrieve filtered count
