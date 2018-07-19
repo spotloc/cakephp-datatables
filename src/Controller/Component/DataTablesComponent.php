@@ -2,6 +2,7 @@
 namespace DataTables\Controller\Component;
 
 use Cake\Controller\Component;
+use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 
 /**
@@ -74,7 +75,7 @@ class DataTablesComponent extends Component
      * @param $options: Query options from the request
      * @return: returns true if additional filtering takes place
      */
-    private function _filter(array &$options) : bool
+    private function _filter(array &$options)
     {
         // -- add limit
         if (!empty($this->request->query['length'])) {
@@ -91,7 +92,7 @@ class DataTablesComponent extends Component
             return false;
 
         // -- check table search field
-        $globalSearch = $this->request->query['search']['value'] ?? false;
+        $globalSearch = isset($this->request->query['search']['value']) ? $this->request->query['search']['value'] : false;
         if ($globalSearch && !empty($options['delegateSearch'])) {
             $options['globalSearch'] = $globalSearch;
             return true; // TODO: support for deferred local search
@@ -110,6 +111,7 @@ class DataTablesComponent extends Component
                 $filters = true;
             }
         }
+
         return $filters;
     }
 
@@ -149,15 +151,19 @@ class DataTablesComponent extends Component
                 $data = $table->find($finder, $options);
             } else {
                 $data->where($this->config('conditionsAnd'));
-                foreach ($this->config('matching') as $association => $where) {
-                    $data->matching($association, function ($q) use ($where) {
-                        return $q->where($where);
-                    });
-                }
+
                 if (!empty($this->config('conditionsOr'))) {
                     $data->where(['or' => $this->config('conditionsOr')]);
                 }
             }
+        } else {
+            $data->where($this->config('conditionsAnd'));
+        }
+
+        foreach ($this->config('matching') as $association => $where) {
+            $data->matching($association, function ($q) use ($where) {
+                return $q->where($where);
+            });
         }
 
         // -- retrieve filtered count
@@ -171,7 +177,7 @@ class DataTablesComponent extends Component
 
         // -- sort
         $data->order($this->config('order'));
-
+Log::debug($data);
         // -- set all view vars to view and serialize array
         $this->_setViewVars();
         return $data;
@@ -182,7 +188,7 @@ class DataTablesComponent extends Component
     {
         $controller = $this->_registry->getController();
 
-        $_serialize = $controller->viewVars['_serialize'] ?? [];
+        $_serialize = isset($controller->viewVars['_serialize']) ? $controller->viewVars['_serialize'] : [];
         $_serialize = array_merge($_serialize, array_keys($this->_viewVars));
 
         $controller->set($this->_viewVars);
@@ -194,12 +200,17 @@ class DataTablesComponent extends Component
         $right = $this->config('prefixSearch') ? "{$value}%" : "%{$value}%";
         $condition = ["{$column} LIKE" => $right];
 
+        list($association, $field) = explode('.', $column);
+
         if ($type === 'or') {
-            $this->config('conditionsOr', $condition); // merges
+            if ($this->_tableName == $association) {
+                $this->config('conditionsOr', $condition); // merges
+            }
             return;
         }
 
-        list($association, $field) = explode('.', $column);
+
+
         if ($this->_tableName == $association) {
             $this->config('conditionsAnd', $condition); // merges
         } else {
