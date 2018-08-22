@@ -138,7 +138,7 @@ class DataTablesComponent extends Component
         $data = $table->find($finder, $options);
 
         // -- retrieve total count
-        $this->_viewVars['recordsTotal'] = $data->count();
+        $this->_viewVars['recordsTotal'] = $data->where($this->config('conditionsAnd'))->count();
 
         // -- process filter options
         $filters = $this->_filter($options);
@@ -161,7 +161,6 @@ class DataTablesComponent extends Component
             }
         } else {
             $data->where($this->config('conditionsAnd'));
-            $this->_viewVars['recordsTotal'] = $data->count();
         }
 
         // -- retrieve filtered count
