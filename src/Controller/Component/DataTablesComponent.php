@@ -158,6 +158,7 @@ class DataTablesComponent extends Component
             }
         } else {
             $data->where($this->config('conditionsAnd'));
+            $this->_viewVars['recordsTotal'] = $data->count();
         }
 
         foreach ($this->config('matching') as $association => $where) {
