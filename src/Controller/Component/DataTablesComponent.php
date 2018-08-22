@@ -161,6 +161,7 @@ class DataTablesComponent extends Component
             }
         } else {
             $data->where($this->config('conditionsAnd'));
+            $this->_viewVars['recordsTotal'] = $data->count();
         }
 
         // -- retrieve filtered count
