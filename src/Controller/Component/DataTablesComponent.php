@@ -137,6 +137,12 @@ class DataTablesComponent extends Component
         // -- call table's finder w/o filters
         $data = $table->find($finder, $options);
 
+         foreach ($this->config('matching') as $association => $where) {
+            $data->matching($association, function ($q) use ($where) {
+                return $q->where($where);
+            });
+        }
+        
         // -- retrieve total count
         $this->_viewVars['recordsTotal'] = $data->where($this->config('conditionsAnd'))->count();
 
@@ -159,11 +165,7 @@ class DataTablesComponent extends Component
             $data->where($this->config('conditionsAnd'));
         }
 
-        foreach ($this->config('matching') as $association => $where) {
-            $data->matching($association, function ($q) use ($where) {
-                return $q->where($where);
-            });
-        }
+      
         
         // -- retrieve filtered count
         $this->_viewVars['recordsFiltered'] = $data->count();
