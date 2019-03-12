@@ -150,11 +150,7 @@ class DataTablesComponent extends Component
                 $data = $table->find($finder, $options);
             } else {
                 $data->where($this->config('conditionsAnd'));
-                foreach ($this->config('matching') as $association => $where) {
-                    $data->matching($association, function ($q) use ($where) {
-                        return $q->where($where);
-                    });
-                }
+                
                 if (!empty($this->config('conditionsOr'))) {
                     $data->where(['or' => $this->config('conditionsOr')]);
                 }
@@ -163,6 +159,12 @@ class DataTablesComponent extends Component
             $data->where($this->config('conditionsAnd'));
         }
 
+        foreach ($this->config('matching') as $association => $where) {
+            $data->matching($association, function ($q) use ($where) {
+                return $q->where($where);
+            });
+        }
+        
         // -- retrieve filtered count
         $this->_viewVars['recordsFiltered'] = $data->count();
 
