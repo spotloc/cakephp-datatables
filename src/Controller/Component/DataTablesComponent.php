@@ -111,7 +111,6 @@ class DataTablesComponent extends Component
                 $filters = true;
             }
         }
-
         return $filters;
     }
 
@@ -138,8 +137,14 @@ class DataTablesComponent extends Component
         // -- call table's finder w/o filters
         $data = $table->find($finder, $options);
 
+         foreach ($this->config('matching') as $association => $where) {
+            $data->matching($association, function ($q) use ($where) {
+                return $q->where($where);
+            });
+        }
+        
         // -- retrieve total count
-        $this->_viewVars['recordsTotal'] = $data->count();
+        $this->_viewVars['recordsTotal'] = $data->where($this->config('conditionsAnd'))->count();
 
         // -- process filter options
         $filters = $this->_filter($options);
@@ -151,22 +156,17 @@ class DataTablesComponent extends Component
                 $data = $table->find($finder, $options);
             } else {
                 $data->where($this->config('conditionsAnd'));
-
+                
                 if (!empty($this->config('conditionsOr'))) {
                     $data->where(['or' => $this->config('conditionsOr')]);
                 }
             }
         } else {
             $data->where($this->config('conditionsAnd'));
-            $this->_viewVars['recordsTotal'] = $data->count();
         }
 
-        foreach ($this->config('matching') as $association => $where) {
-            $data->matching($association, function ($q) use ($where) {
-                return $q->where($where);
-            });
-        }
-
+      
+        
         // -- retrieve filtered count
         $this->_viewVars['recordsFiltered'] = $data->count();
 
@@ -178,7 +178,7 @@ class DataTablesComponent extends Component
 
         // -- sort
         $data->order($this->config('order'));
-Log::debug($data);
+
         // -- set all view vars to view and serialize array
         $this->_setViewVars();
         return $data;
@@ -198,24 +198,30 @@ Log::debug($data);
 
     private function _addCondition($column, $value, $type = 'and')
     {
+        $table = TableRegistry::getTableLocator()->get($this->_tableName);
+
+        $hasTranslate = $table->behaviors()->has('Translate');
         $right = $this->config('prefixSearch') ? "{$value}%" : "%{$value}%";
-        $condition = ["{$column} LIKE" => $right];
-
-        list($association, $field) = explode('.', $column);
-
+        
+        if($hasTranslate) {
+            $s = explode(".",$column);
+            $simpleColumn = end($s);
+            $condition = [$table->translationField($simpleColumn) . ' LIKE' => $right];
+        } else {
+            $condition = ["{$column} LIKE" => $right];
+        }
+        
         if ($type === 'or') {
-            if ($this->_tableName == $association) {
-                $this->config('conditionsOr', $condition); // merges
-            }
+            $this->config('conditionsOr', $condition); // merges
             return;
         }
 
-
-
+        list($association, $field) = explode('.', $column);
         if ($this->_tableName == $association) {
             $this->config('conditionsAnd', $condition); // merges
         } else {
             $this->config('matching', [$association => $condition]); // merges
+
         }
     }
 }
