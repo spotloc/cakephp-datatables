@@ -198,9 +198,19 @@ class DataTablesComponent extends Component
 
     private function _addCondition($column, $value, $type = 'and')
     {
-        $right = $this->config('prefixSearch') ? "{$value}%" : "%{$value}%";
-        $condition = ["{$column} LIKE" => $right];
+        $table = TableRegistry::getTableLocator()->get($this->_tableName);
 
+        $hasTranslate = $table->behaviors()->has('Translate');
+        $right = $this->config('prefixSearch') ? "{$value}%" : "%{$value}%";
+        
+        if($hasTranslate) {
+            $s = explode(".",$column);
+            $simpleColumn = end($s);
+            $condition = [$table->translationField($simpleColumn) . ' LIKE' => $right];
+        } else {
+            $condition = ["{$column} LIKE" => $right];
+        }
+        
         if ($type === 'or') {
             $this->config('conditionsOr', $condition); // merges
             return;
@@ -211,6 +221,7 @@ class DataTablesComponent extends Component
             $this->config('conditionsAnd', $condition); // merges
         } else {
             $this->config('matching', [$association => $condition]); // merges
+
         }
     }
 }
