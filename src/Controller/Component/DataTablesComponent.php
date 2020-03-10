@@ -206,9 +206,9 @@ class DataTablesComponent extends Component
         if($hasTranslate) {
             $s = explode(".",$column);
             $simpleColumn = end($s);
-            $condition = [$table->translationField($simpleColumn) . ' LIKE' => $right];
+            $condition = [$table->translationField($simpleColumn) . " LIKE '$right'"];
         } else {
-            $condition = ["{$column} LIKE" => $right];
+            $condition = ["{$column} LIKE  '$right'"];
         }
         
         if ($type === 'or') {
