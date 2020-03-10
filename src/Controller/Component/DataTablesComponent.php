@@ -106,7 +106,7 @@ class DataTablesComponent extends Component
                 $filters = true;
             }
             $localSearch = $column['search']['value'];
-            if (!empty($localSearch)) {
+            if (strlen($localSearch)) {
                 $this->_addCondition($column['name'], $column['search']['value']);
                 $filters = true;
             }
