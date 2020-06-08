@@ -1,227 +1,105 @@
 <?php
-namespace DataTables\Controller\Component;
+namespace DataTables\View\Helper;
 
-use Cake\Controller\Component;
-use Cake\Log\Log;
-use Cake\ORM\TableRegistry;
+use Cake\View\Helper;
+use DataTables\Lib\CallbackFunction;
 
 /**
- * DataTables component
+ * DataTables helper
+ *
+ *
  */
-class DataTablesComponent extends Component
+class DataTablesHelper extends Helper
 {
+    public $helpers = ['Html'];
 
     protected $_defaultConfig = [
-        'start' => 0,
-        'length' => 10,
-        'order' => [],
-        'prefixSearch' => true, // use "LIKE …%" instead of "LIKE %…%" conditions
-        'conditionsOr' => [],  // table-wide search conditions
-        'conditionsAnd' => [], // column search conditions
-        'matching' => [],      // column search conditions for foreign tables
+        'searching' => true,
+        'processing' => true,
+        'serverSide' => true,
+        'deferRender' => true,
     ];
 
-    protected $_viewVars = [
-        'recordsTotal' => 0,
-        'recordsFiltered' => 0,
-        'draw' => 0
-    ];
-
-    protected $_tableName = null;
-
-    protected $_plugin = null;
-
-    /**
-     * Process draw option (pass-through)
-     */
-    private function _draw()
+    public function initialize(array $config) :void
     {
-        if (empty($this->request->query['draw']))
-            return;
-
-        $this->_viewVars['draw'] = (int)$this->request->query['draw'];
+        /* set default i18n (not possible in _$defaultConfig due to use of __d() */
+        if (empty($this->setConfig('language'))) {
+            // defaults from datatables.net/reference/option/language
+            $this->setConfig('language', [
+                'emptyTable' => __d('data_tables', 'No data available in table'),
+                'info' => __d('data_tables', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+                'infoEmpty' => __d('data_tables', 'No entries to show'),
+                'infoFiltered' => __d('data_tables', '(filtered from _MAX_ total entries)'),
+                'lengthMenu' => __d('data_tables', 'Show _MENU_ entries'),
+                'processing' => __d('data_tables', 'Processing...'),
+                'search' => __d('data_tables', 'Search:'),
+                'zeroRecords' => __d('data_tables', 'No matching records found'),
+                'paginate' => [
+                    'first' => __d('data_tables', 'First'),
+                    'last' => __d('data_tables', 'Last'),
+                    'next' => __d('data_tables', 'Next'),
+                    'previous' => __d('data_tables', 'Previous'),
+                ],
+                'aria' => [
+                    'sortAscending' => __d('data_tables', ': activate to sort column ascending'),
+                    'sortDescending' => __d('data_tables', ': activate to sort column descending'),
+                ],
+            ]);
+        }
     }
 
+
     /**
-     * Process query data of ajax request regarding order
-     * Alters $options if delegateOrder is set
-     * In this case, the model needs to handle the 'customOrder' option.
-     * @param $options: Query options from the request
+     * Return a Javascript function wrapper to be used in DataTables configuration
+     * @param string $name Name of Javascript function to call
+     * @param array $args Optional array of arguments to be passed when calling
+     * @return CallbackFunction
      */
-    private function _order(array &$options)
+    public function callback(string $name, array $args = []) : CallbackFunction
     {
-        if (empty($this->request->query['order']))
-            return;
-
-        // -- add custom order
-        $order = $this->config('order');
-        foreach($this->request->query['order'] as $item) {
-            $order[$this->request->query['columns'][$item['column']]['name']] = $item['dir'];
-        }
-        if (!empty($options['delegateOrder'])) {
-            $options['customOrder'] = $order;
-        } else {
-            $this->config('order', $order);
-        }
-
-        // -- remove default ordering as we have a custom one
-        unset($options['order']);
+        return new CallbackFunction($name, $args);
     }
 
     /**
-     * Process query data of ajax request regarding filtering
-     * Alters $options if delegateSearch is set
-     * In this case, the model needs to handle the 'globalSearch' option.
-     * @param $options: Query options from the request
-     * @return: returns true if additional filtering takes place
+     * Return a table with dataTables overlay
+     * @param $id: DOM id of the table
+     * @param $dtOptions: Options for DataTables
+     * @param $htmlOptions: Options for the table, e.g. CSS classes
+     * @return string containing a <table> and a <script> element
      */
-    private function _filter(array &$options)
+    public function table(string $id = 'datatable', array $dtOptions = [], array $htmlOptions = []) : string
     {
-        // -- add limit
-        if (!empty($this->request->query['length'])) {
-            $this->config('length', $this->request->query['length']);
-        }
+        $htmlOptions = array_merge($htmlOptions,  [
+            'id' => $id,
+            'class' => 'dataTable ' . ($htmlOptions['class'] ?? ''),
+        ]);
+        $table = $this->Html->tag('table', '', $htmlOptions);
 
-        // -- add offset
-        if (!empty($this->request->query['start'])) {
-            $this->config('start', (int)$this->request->query['start']);
-        }
+        $code = $this->draw("#{$id}", $dtOptions);
 
-        // -- don't support any search if columns data missing
-        if (empty($this->request->query['columns']))
-            return false;
-
-        // -- check table search field
-        $globalSearch = isset($this->request->query['search']['value']) ? $this->request->query['search']['value'] : false;
-        if ($globalSearch && !empty($options['delegateSearch'])) {
-            $options['globalSearch'] = $globalSearch;
-            return true; // TODO: support for deferred local search
-        }
-
-        // -- add conditions for both table-wide and column search fields
-        $filters = false;
-        foreach ($this->request->query['columns'] as $column) {
-            if ($globalSearch && $column['searchable'] == 'true') {
-                $this->_addCondition($column['name'], $globalSearch, 'or');
-                $filters = true;
-            }
-            $localSearch = $column['search']['value'];
-            if (strlen($localSearch)) {
-                $this->_addCondition($column['name'], $column['search']['value']);
-                $filters = true;
-            }
-        }
-        return $filters;
+        return $table.$this->Html->scriptBlock($code);
     }
 
     /**
-     * Find data
-     *
-     * @param $tableName
-     * @param $finder
-     * @param array $options
-     * @return array|\Cake\ORM\Query
+     * @deprecated use configShallow() instead
      */
-    public function find($tableName, $finder = 'all', array $options = [])
+    public function init(array $options = [])
     {
-        $delegateSearch = !empty($options['delegateSearch']);
+        /* merge options non-recursively */
+        $this->configShallow($options);
 
-        // -- get table object
-        $table = TableRegistry::get($tableName);
-        $this->_tableName = $table->alias();
-
-        // -- process draw & ordering options
-        $this->_draw();
-        $this->_order($options);
-
-        // -- call table's finder w/o filters
-        $data = $table->find($finder, $options);
-
-         foreach ($this->config('matching') as $association => $where) {
-            $data->matching($association, function ($q) use ($where) {
-                return $q->where($where);
-            });
-        }
-        
-        // -- retrieve total count
-        $this->_viewVars['recordsTotal'] = $data->where($this->config('conditionsAnd'))->count();
-
-        // -- process filter options
-        $filters = $this->_filter($options);
-
-        // -- apply filters
-        if ($filters) {
-            if ($delegateSearch) {
-                // call finder again to process filters (provided in $options)
-                $data = $table->find($finder, $options);
-            } else {
-                $data->where($this->config('conditionsAnd'));
-                
-                if (!empty($this->config('conditionsOr'))) {
-                    $data->where(['or' => $this->config('conditionsOr')]);
-                }
-            }
-        } else {
-            $data->where($this->config('conditionsAnd'));
-        }
-
-      
-        
-        // -- retrieve filtered count
-        $this->_viewVars['recordsFiltered'] = $data->count();
-
-        // -- add limit
-        if ($this->config('length') > 0) { // dt might provide -1
-            $data->limit($this->config('length'));
-            $data->offset($this->config('start'));
-        }
-
-        // -- sort
-        $data->order($this->config('order'));
-
-        // -- set all view vars to view and serialize array
-        $this->_setViewVars();
-        return $data;
-
+        return $this;
     }
 
-    private function _setViewVars()
+    public function draw(string $selector, array $options = [])
     {
-        $controller = $this->_registry->getController();
+        // incorporate any defaults set earlier
+        $options += $this->getConfig();
 
-        $_serialize = isset($controller->viewVars['_serialize']) ? $controller->viewVars['_serialize'] : [];
-        $_serialize = array_merge($_serialize, array_keys($this->_viewVars));
+        // prepare javascript object from the config, including method calls
+        $json = CallbackFunction::resolve(json_encode($options));
 
-        $controller->set($this->_viewVars);
-        $controller->set('_serialize', $_serialize);
-    }
-
-    private function _addCondition($column, $value, $type = 'and')
-    {
-        $table = TableRegistry::getTableLocator()->get($this->_tableName);
-
-        $hasTranslate = $table->behaviors()->has('Translate');
-        $right = $this->config('prefixSearch') ? "{$value}%" : "%{$value}%";
-        
-        if($hasTranslate) {
-            $s = explode(".",$column);
-            $simpleColumn = end($s);
-            $condition = [$table->translationField($simpleColumn) . " LIKE '$right'"];
-        } else {
-            $condition = ["{$column} LIKE  '$right'"];
-        }
-        
-        if ($type === 'or') {
-            $this->config('conditionsOr', $condition); // merges
-            return;
-        }
-
-        list($association, $field) = explode('.', $column);
-        if ($this->_tableName == $association) {
-            $this->config('conditionsAnd', $condition); // merges
-        } else {
-            $this->config('matching', [$association => $condition]); // merges
-
-        }
+        // return a call to initializer method
+        return "dt.initDataTables('{$selector}', {$json});\n";
     }
 }
