@@ -20,12 +20,12 @@ class DataTablesHelper extends Helper
         'deferRender' => true,
     ];
 
-    public function initialize(array $config)
+    public function initialize(array $config) :void
     {
         /* set default i18n (not possible in _$defaultConfig due to use of __d() */
-        if (empty($this->config('language'))) {
+        if (empty($this->setConfig('language'))) {
             // defaults from datatables.net/reference/option/language
-            $this->config('language', [
+            $this->setConfig('language', [
                 'emptyTable' => __d('data_tables', 'No data available in table'),
                 'info' => __d('data_tables', 'Showing _START_ to _END_ of _TOTAL_ entries'),
                 'infoEmpty' => __d('data_tables', 'No entries to show'),
@@ -94,7 +94,7 @@ class DataTablesHelper extends Helper
     public function draw(string $selector, array $options = [])
     {
         // incorporate any defaults set earlier
-        $options += $this->config();
+        $options += $this->getConfig();
 
         // prepare javascript object from the config, including method calls
         $json = CallbackFunction::resolve(json_encode($options));
