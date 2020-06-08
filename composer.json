@@ -1,6 +1,6 @@
 {
     "name": "ypnos-web/cakephp-datatables",
-    "description": "jQuery DataTables for CakePHP 3",
+    "description": "jQuery DataTables for CakePHP 4",
     "homepage": "https://github.com/ypnos-web/cakephp-datatables",
     "type": "cakephp-plugin",
     "keywords": ["cakephp", "datatables"],
