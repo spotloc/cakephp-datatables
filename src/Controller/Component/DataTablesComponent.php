@@ -54,14 +54,14 @@ class DataTablesComponent extends Component
             return;
 
         // -- add custom order
-        $order = $this->config('order');
+        $order = $this->getConfig('order');
         foreach($this->request->query['order'] as $item) {
             $order[$this->request->query['columns'][$item['column']]['name']] = $item['dir'];
         }
         if (!empty($options['delegateOrder'])) {
             $options['customOrder'] = $order;
         } else {
-            $this->config('order', $order);
+            $this->setConfig('order', $order);
         }
 
         // -- remove default ordering as we have a custom one
@@ -79,12 +79,12 @@ class DataTablesComponent extends Component
     {
         // -- add limit
         if (!empty($this->request->query['length'])) {
-            $this->config('length', $this->request->query['length']);
+            $this->setConfig('length', $this->request->query['length']);
         }
 
         // -- add offset
         if (!empty($this->request->query['start'])) {
-            $this->config('start', (int)$this->request->query['start']);
+            $this->setConfig('start', (int)$this->request->query['start']);
         }
 
         // -- don't support any search if columns data missing
@@ -127,7 +127,7 @@ class DataTablesComponent extends Component
         $delegateSearch = !empty($options['delegateSearch']);
 
         // -- get table object
-        $table = TableRegistry::get($tableName);
+        $table =  TableRegistry::getTableLocator()->get($tableName);
         $this->_tableName = $table->alias();
 
         // -- process draw & ordering options
@@ -137,14 +137,14 @@ class DataTablesComponent extends Component
         // -- call table's finder w/o filters
         $data = $table->find($finder, $options);
 
-         foreach ($this->config('matching') as $association => $where) {
+         foreach ($this->getConfig('matching') as $association => $where) {
             $data->matching($association, function ($q) use ($where) {
                 return $q->where($where);
             });
         }
         
         // -- retrieve total count
-        $this->_viewVars['recordsTotal'] = $data->where($this->config('conditionsAnd'))->count();
+        $this->_viewVars['recordsTotal'] = $data->where($this->getConfig('conditionsAnd'))->count();
 
         // -- process filter options
         $filters = $this->_filter($options);
@@ -155,14 +155,14 @@ class DataTablesComponent extends Component
                 // call finder again to process filters (provided in $options)
                 $data = $table->find($finder, $options);
             } else {
-                $data->where($this->config('conditionsAnd'));
+                $data->where($this->getConfig('conditionsAnd'));
                 
-                if (!empty($this->config('conditionsOr'))) {
-                    $data->where(['or' => $this->config('conditionsOr')]);
+                if (!empty($this->getConfig('conditionsOr'))) {
+                    $data->where(['or' => $this->getConfig('conditionsOr')]);
                 }
             }
         } else {
-            $data->where($this->config('conditionsAnd'));
+            $data->where($this->getConfig('conditionsAnd'));
         }
 
       
@@ -171,13 +171,13 @@ class DataTablesComponent extends Component
         $this->_viewVars['recordsFiltered'] = $data->count();
 
         // -- add limit
-        if ($this->config('length') > 0) { // dt might provide -1
-            $data->limit($this->config('length'));
-            $data->offset($this->config('start'));
+        if ($this->getConfig('length') > 0) { // dt might provide -1
+            $data->limit($this->getConfig('length'));
+            $data->offset($this->getConfig('start'));
         }
 
         // -- sort
-        $data->order($this->config('order'));
+        $data->order($this->getConfig('order'));
 
         // -- set all view vars to view and serialize array
         $this->_setViewVars();
@@ -201,7 +201,7 @@ class DataTablesComponent extends Component
         $table = TableRegistry::getTableLocator()->get($this->_tableName);
 
         $hasTranslate = $table->behaviors()->has('Translate');
-        $right = $this->config('prefixSearch') ? "{$value}%" : "%{$value}%";
+        $right = $this->getConfig('prefixSearch') ? "{$value}%" : "%{$value}%";
         
         if($hasTranslate) {
             $s = explode(".",$column);
@@ -212,15 +212,15 @@ class DataTablesComponent extends Component
         }
         
         if ($type === 'or') {
-            $this->config('conditionsOr', $condition); // merges
+            $this->setConfig('conditionsOr', $condition); // merges
             return;
         }
 
         list($association, $field) = explode('.', $column);
         if ($this->_tableName == $association) {
-            $this->config('conditionsAnd', $condition); // merges
+            $this->setConfig('conditionsAnd', $condition); // merges
         } else {
-            $this->config('matching', [$association => $condition]); // merges
+            $this->setConfig('matching', [$association => $condition]); // merges
 
         }
     }
