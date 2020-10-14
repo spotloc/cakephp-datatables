@@ -128,7 +128,7 @@ class DataTablesComponent extends Component
 
         // -- get table object
         $table =  TableRegistry::getTableLocator()->get($tableName);
-        $this->_tableName = $table->alias();
+        $this->_tableName = $table->getAlias();
 
         // -- process draw & ordering options
         $this->_draw();
