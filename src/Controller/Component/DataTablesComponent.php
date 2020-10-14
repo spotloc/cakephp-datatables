@@ -36,10 +36,10 @@ class DataTablesComponent extends Component
      */
     private function _draw()
     {
-        if (empty($this->request->query['draw']))
+        if (empty($this->request->getQuery('draw')))
             return;
 
-        $this->_viewVars['draw'] = (int)$this->request->query['draw'];
+        $this->_viewVars['draw'] = (int)$this->request->getQuery('draw');
     }
 
     /**
@@ -50,13 +50,13 @@ class DataTablesComponent extends Component
      */
     private function _order(array &$options)
     {
-        if (empty($this->request->query['order']))
+        if (empty($this->request->getQuery('order')))
             return;
 
         // -- add custom order
         $order = $this->getConfig('order');
-        foreach($this->request->query['order'] as $item) {
-            $order[$this->request->query['columns'][$item['column']]['name']] = $item['dir'];
+        foreach($this->request->getQuery('order') as $item) {
+            $order[$this->request->getQuery('columns')[$item['column']]['name']] = $item['dir'];
         }
         if (!empty($options['delegateOrder'])) {
             $options['customOrder'] = $order;
@@ -78,21 +78,21 @@ class DataTablesComponent extends Component
     private function _filter(array &$options)
     {
         // -- add limit
-        if (!empty($this->request->query['length'])) {
-            $this->setConfig('length', $this->request->query['length']);
+        if (!empty($this->request->getQuery('length'))) {
+            $this->setConfig('length', $this->request->getQuery('length'));
         }
 
         // -- add offset
-        if (!empty($this->request->query['start'])) {
-            $this->setConfig('start', (int)$this->request->query['start']);
+        if (!empty($this->request->getQuery('start'))) {
+            $this->setConfig('start', (int)$this->request->getQuery('start'));
         }
 
         // -- don't support any search if columns data missing
-        if (empty($this->request->query['columns']))
+        if (empty($this->request->getQuery('columns')))
             return false;
 
         // -- check table search field
-        $globalSearch = isset($this->request->query['search']['value']) ? $this->request->query['search']['value'] : false;
+        $globalSearch = isset($this->request->getQuery('search')['value']) ? $this->request->getQuery('search')['value'] : false;
         if ($globalSearch && !empty($options['delegateSearch'])) {
             $options['globalSearch'] = $globalSearch;
             return true; // TODO: support for deferred local search
@@ -100,7 +100,7 @@ class DataTablesComponent extends Component
 
         // -- add conditions for both table-wide and column search fields
         $filters = false;
-        foreach ($this->request->query['columns'] as $column) {
+        foreach ($this->request->getQuery('columns') as $column) {
             if ($globalSearch && $column['searchable'] == 'true') {
                 $this->_addCondition($column['name'], $globalSearch, 'or');
                 $filters = true;
