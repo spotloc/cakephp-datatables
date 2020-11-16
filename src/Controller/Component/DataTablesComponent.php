@@ -202,16 +202,15 @@ class DataTablesComponent extends Component
 
         $hasTranslate = $table->behaviors()->has('Translate');
         $right = $this->getConfig('prefixSearch') ? "{$value}%" : "%{$value}%";
-
+        $s = explode(".", $column);
         if ($hasTranslate) {
-            $s = explode(".", $column);
             $simpleColumn = end($s);
             $condition = [$table->translationField($simpleColumn) . " LIKE '$right'"];
         } else {
             $condition = ["{$column} LIKE  '$right'"];
         }
 
-        if ($type === 'or') {
+        if ($type === 'or' && count($s) != 3) {
             $this->setConfig('conditionsOr', $condition); // merges
             return;
         }
@@ -221,6 +220,13 @@ class DataTablesComponent extends Component
             $this->setConfig('conditionsAnd', $condition); // merges
         } else {
             $this->setConfig('matching', [$association => $condition]); // merges
+            if (count($s) == 3) {
+                $subTable = TableRegistry::getTableLocator()->get($s[1]);
+                $subTableIds = $subTable->find()->select(['id'])->where([$s[1] . "." . $s[2] . " LIKE" => $right]);
+                $associationFk = TableRegistry::getTableLocator()->get($s[0])->getAssociation($s[1])->getForeignKey();
+                $this->setConfig('conditionsOr', [$s[0] . ".$associationFk IN" => $subTableIds]); // merges
+                return;
+            }
         }
     }
 }
