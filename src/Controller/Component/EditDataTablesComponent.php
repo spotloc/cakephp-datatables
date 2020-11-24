@@ -61,8 +61,7 @@ class EditDataTablesComponent extends Component
 
         if ($action == 'create') {
             try {
-
-                $entity = $dataTable->newEntity([]);
+                $entity = $dataTable->newEmptyEntity();
 
             } catch (Exception $e) {
                 Log::error($e);
