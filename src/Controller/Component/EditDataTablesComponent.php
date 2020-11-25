@@ -137,6 +137,17 @@ class EditDataTablesComponent extends Component
             if ($result) {
                 return ["data" => []];
             } else {
+                foreach ($entity->getErrors() as $e => $errors) {
+                    foreach ($errors as $m => $err) {
+                        if (is_array($err)) {
+                            foreach ($err as $k => $v) {
+                                return ['error' => $v];
+                            }
+                        } else {
+                            return ['error' => $err];
+                        }
+                    }
+                }
                 return ['error' => __d('data_tables', 'delete_error')];
             }
         }
@@ -220,5 +231,4 @@ class EditDataTablesComponent extends Component
         }
         return $searched;
     }
-
 }
