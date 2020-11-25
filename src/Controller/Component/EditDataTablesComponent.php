@@ -133,9 +133,11 @@ class EditDataTablesComponent extends Component
         $entity = $dataTable->get($itemId);
 
         if ($entity) {
-            $entity = $dataTable->delete($entity);
-            if ($entity) {
+            $result = $dataTable->delete($entity);
+            if ($result) {
                 return ["data" => []];
+            } else {
+                return ['error' => __d('data_tables', 'delete_error')];
             }
         }
     }
